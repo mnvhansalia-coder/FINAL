@@ -3152,6 +3152,16 @@ function showToast(msg) {
   t._timer = setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+function toSafeMediaUrl(url) {
+  try {
+    if (!url) return '';
+    if (/^https?:\/\//i.test(url)) return url;
+    return encodeURI(url);
+  } catch {
+    return url || '';
+  }
+}
+
 function openVideoLink(video) {
   if (!video?.url) {
     showToast('Playback link is not available for this video yet.');
@@ -3169,7 +3179,8 @@ function openVideoLink(video) {
   }
 
   titleEl.textContent = video.title || 'Now playing';
-  fallbackEl.innerHTML = `Can&apos;t play? <a href="${video.url}" target="_blank" rel="noopener noreferrer">Open video in a new tab</a>`;
+  const safeUrl = toSafeMediaUrl(video.url);
+  fallbackEl.innerHTML = `Can&apos;t play? <a href="${safeUrl}" target="_blank" rel="noopener noreferrer">Open video in a new tab</a>`;
   frame.src = '';
   frame.classList.remove('hidden');
   nativeVideo.pause();
@@ -3179,7 +3190,7 @@ function openVideoLink(video) {
 
   if (isDirectVideoUrl(video.url)) {
     frame.classList.add('hidden');
-    nativeVideo.src = video.url;
+    nativeVideo.src = safeUrl;
     nativeVideo.classList.add('open');
     nativeVideo.play().catch(() => {
       showToast('Unable to load local video. Check file path in videos/education/.');
@@ -3263,7 +3274,7 @@ function openShortsPlayer(list) {
   vid.pause();
   vid.muted = true;
   hint.textContent = 'Tap to unmute';
-  vid.src = v.url;
+  vid.src = toSafeMediaUrl(v.url);
   vid.play().catch(() => {});
 
   overlay.classList.add('open');
