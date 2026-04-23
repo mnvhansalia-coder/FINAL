@@ -3156,6 +3156,8 @@ function toSafeMediaUrl(url) {
   try {
     if (!url) return '';
     if (/^https?:\/\//i.test(url)) return url;
+    // Avoid double-encoding already-escaped URLs (e.g. "%20" -> "%2520")
+    if (/%[0-9A-Fa-f]{2}/.test(url)) return url;
     return encodeURI(url);
   } catch {
     return url || '';
