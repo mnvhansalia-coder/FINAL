@@ -413,6 +413,35 @@
       text-decoration: none; font-weight: 500; transition: color 0.15s;
     }
     #screen-login .login-signup-link:hover { color: rgba(167,139,250,1); }
+
+    /* ── Sign‑up panel toggle ── */
+    #login-panel, #signup-panel {
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    #signup-panel {
+      display: none; opacity: 0; transform: translateY(10px);
+    }
+    #signup-panel.active {
+      display: block; opacity: 1; transform: translateY(0);
+    }
+    #login-panel.hidden {
+      display: none;
+    }
+    /* success tick badge */
+    .signup-success-badge {
+      display: none; align-items: center; gap: 8px;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.35);
+      border-radius: 10px; padding: 11px 14px; margin-top: 14px;
+      font-size: 12px; color: #4ade80; line-height: 1.5;
+    }
+    .signup-success-badge.show { display: flex; }
+    /* error message */
+    .login-error-msg {
+      display: none; font-size: 12px; color: #f87171;
+      margin-top: 8px; text-align: center;
+    }
+    .login-error-msg.show { display: block; }
     @media (max-width: 860px) {
       #screen-login .login-left { display: none; }
       #screen-login .login-right { width: 100%; min-width: unset; border-left: none; }
@@ -2505,6 +2534,8 @@
   <!-- ── Right Panel ── -->
   <div class="login-right">
     <div class="login-right-inner">
+    <!-- login panel wrapper -->
+    <div id="login-panel">
       <p class="form-eyebrow">Member access</p>
       <h2 class="form-title">Sign in</h2>
       <p class="form-sub">Access your domain feed.<br/>Your domain is set once and locked to your account.</p>
@@ -2553,9 +2584,49 @@
       </div>
 
       <p class="login-signup-row">
-        No account? <a class="login-signup-link" onclick="showToast('Sign up coming soon!'); return false;">Create one &mdash; it&rsquo;s free</a>
+        No account? <a class="login-signup-link" id="goto-signup" onclick="showSignUp(); return false;">Create one &mdash; it&rsquo;s free</a>
       </p>
     </div>
+
+    <!-- ── SIGN‑UP PANEL ── -->
+    <div id="signup-panel">
+      <p class="form-eyebrow">New account</p>
+      <h2 class="form-title">Create account</h2>
+      <p class="form-sub">Choose your email and a strong password.<br/>Your domain will be selected after sign‑up.</p>
+
+      <form id="signup-form" onsubmit="handleSignUp(event)" novalidate>
+        <div class="login-field">
+          <label for="signup-email" class="login-field-label">Email address</label>
+          <input id="signup-email" class="login-field-input" type="email"
+                 placeholder="you@example.com" autocomplete="email" required />
+        </div>
+        <div class="login-field">
+          <label for="signup-password" class="login-field-label">Password</label>
+          <input id="signup-password" class="login-field-input" type="password"
+                 placeholder="••••••••••" autocomplete="new-password" required />
+        </div>
+        <div class="login-field">
+          <label for="signup-confirm" class="login-field-label">Confirm password</label>
+          <input id="signup-confirm" class="login-field-input" type="password"
+                 placeholder="••••••••••" autocomplete="new-password" required />
+        </div>
+        <div class="login-error-msg" id="signup-error"></div>
+        <button type="submit" class="login-cta-btn" id="signup-btn">
+          <div class="login-cta-btn-inner">Create account &rarr;</div>
+        </button>
+      </form>
+
+      <div class="signup-success-badge" id="signup-success">
+        <span>&#10003;</span>
+        <span>Account created! You can now sign in.</span>
+      </div>
+
+      <p class="login-signup-row" style="margin-top:18px;">
+        Already have an account? <a class="login-signup-link" id="goto-login" onclick="showLogin(); return false;">Sign in</a>
+      </p>
+    </div>
+
+  </div>
   </div>
 
 </section>
@@ -3336,23 +3407,119 @@ function toPlayableEmbedUrl(url) {
 /* ====================================================================
    SCREEN 1 — LOGIN
 ==================================================================== */
+/* ── Sign‑up / Sign‑in toggle helpers ── */
+function showSignUp() {
+  const lp = document.getElementById('login-panel');
+  const sp = document.getElementById('signup-panel');
+  if (!lp || !sp) return;
+  lp.classList.add('hidden');
+  sp.style.display = 'block';
+  // force reflow for animation
+  sp.offsetHeight;
+  sp.classList.add('active');
+  document.getElementById('signup-error').classList.remove('show');
+  document.getElementById('signup-success').classList.remove('show');
+}
+
+function showLogin() {
+  const lp = document.getElementById('login-panel');
+  const sp = document.getElementById('signup-panel');
+  if (!lp || !sp) return;
+  sp.classList.remove('active');
+  setTimeout(() => { sp.style.display = 'none'; }, 260);
+  lp.classList.remove('hidden');
+}
+
+/* ── Sign‑Up handler ── */
+function handleSignUp(e) {
+  e.preventDefault();
+  const email    = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  const confirm  = document.getElementById('signup-confirm').value;
+  const errEl    = document.getElementById('signup-error');
+
+  errEl.classList.remove('show');
+
+  if (!email || !password) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    errEl.textContent = 'Please enter a valid email address.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (password.length < 6) {
+    errEl.textContent = 'Password must be at least 6 characters.';
+    errEl.classList.add('show');
+    return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  // Check if user already exists
+  const existing = JSON.parse(localStorage.getItem('streamcore_users') || '{}');
+  if (existing[email]) {
+    errEl.textContent = 'An account with this email already exists. Please sign in.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  // Save new user
+  existing[email] = { password };
+  localStorage.setItem('streamcore_users', JSON.stringify(existing));
+
+  // Show success & clear form
+  document.getElementById('signup-form').reset();
+  document.getElementById('signup-success').classList.add('show');
+  showToast('Account created! Please sign in.');
+  setTimeout(() => {
+    showLogin();
+    // Pre‑fill email on login form
+    const emailInput = document.getElementById('email-input');
+    if (emailInput) emailInput.value = email;
+  }, 1800);
+}
+
 function handleLogin(e, method) {
   if (e) e.preventDefault();
 
-  const email = document.getElementById('email-input').value;
+  const email    = document.getElementById('email-input').value.trim();
   const password = document.getElementById('password-input').value;
 
-  if (!method && (!email || !password)) {
+  if (method === 'google') {
+    // Google SSO mock — allow through
+    state.user.name     = 'Google User';
+    state.user.initials = 'GU';
+    buildDomainPicker();
+    showScreen('domain');
+    return;
+  }
+
+  if (!email || !password) {
     showToast('Please enter your email and password.');
     return;
   }
 
-  // Extract name from email or use default
-  if (email) {
-    const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    state.user.name = name;
-    state.user.initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+  // Validate against stored credentials
+  const users = JSON.parse(localStorage.getItem('streamcore_users') || '{}');
+  if (!users[email]) {
+    showToast('No account found. Please sign up first.');
+    return;
   }
+  if (users[email].password !== password) {
+    showToast('Incorrect password. Please try again.');
+    return;
+  }
+
+  // Successful login
+  const name = email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  state.user.name     = name;
+  state.user.initials = name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
   buildDomainPicker();
   showScreen('domain');
