@@ -3991,11 +3991,11 @@ function renderFeedCards(domain, cat) {
         <span class="edu-expert-tag">Expert Rated</span>
       </div>` : '';
     const flagHtml = isEdu ? `
-      <div class="edu-flag-row" onclick="event.stopPropagation()">
-        <button class="edu-flag-btn edu-flag-like${flagState === 'like' ? ' active' : ''}" data-title="${v.title.replace(/"/g,'&quot;')}" data-action="like" title="Like this video">
+      <div class="edu-flag-row">
+        <button class="edu-flag-btn edu-flag-like${flagState === 'like' ? ' active' : ''}" data-vidx="${videos.indexOf(v)}" data-action="like" title="Like this video">
           <span class="edu-flag-icon">🟢</span> Like
         </button>
-        <button class="edu-flag-btn edu-flag-dislike${flagState === 'dislike' ? ' active' : ''}" data-title="${v.title.replace(/"/g,'&quot;')}" data-action="dislike" title="Dislike this video">
+        <button class="edu-flag-btn edu-flag-dislike${flagState === 'dislike' ? ' active' : ''}" data-vidx="${videos.indexOf(v)}" data-action="dislike" title="Dislike this video">
           <span class="edu-flag-icon">🔴</span> Not for me
         </button>
       </div>` : '';
@@ -4022,12 +4022,11 @@ function renderFeedCards(domain, cat) {
   // attach video play click
   document.querySelectorAll('#tfVideoGrid .tf-vcard').forEach((card, i) => {
     const v = videos[i] || {};
-    const play = (ev) => {
-      // don't play if flag button was clicked
-      if (ev.target.closest('.edu-flag-btn')) return;
+    card.addEventListener('click', (ev) => {
+      // Block play if the click originated from a flag button or flag row
+      if (ev.target.closest('.edu-flag-row')) return;
       openVideoLink(v);
-    };
-    card.addEventListener('click', play);
+    });
     card.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); openVideoLink(v); }
     });
@@ -4037,11 +4036,14 @@ function renderFeedCards(domain, cat) {
   if (isEdu) {
     document.querySelectorAll('#tfVideoGrid .edu-flag-btn').forEach((btn) => {
       btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         ev.stopPropagation();
-        const title  = btn.dataset.title;
+        ev.stopImmediatePropagation();
+        const vidx   = parseInt(btn.dataset.vidx, 10);
         const action = btn.dataset.action;
-        const video  = videos.find(v => v.title === title);
+        const video  = videos[vidx];
         if (!video) return;
+        const title = video.title;
 
         const prev = state.videoFlags[title] || null;
         if (prev === action) {
@@ -4054,22 +4056,18 @@ function renderFeedCards(domain, cat) {
             showToast('Removed dislike.');
           }
         } else {
-          // set new flag, remove opposite
           state.videoFlags[title] = action;
           if (action === 'like') {
             if (!state.likedVideos.find(lv => lv.title === title)) {
               state.likedVideos.push(video);
             }
-            // remove from disliked if was there
             showToast('💚 Added to Liked Videos!');
           } else {
-            // dislike: remove from liked if was liked
             state.likedVideos = state.likedVideos.filter(lv => lv.title !== title);
             showToast('🔴 Marked as Not for me.');
           }
         }
         updateLikedBadge();
-        // re-render to update button states
         renderFeedCards(domain, cat);
       });
     });
